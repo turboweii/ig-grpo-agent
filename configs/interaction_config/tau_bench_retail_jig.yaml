@@ -28,3 +28,11 @@ interaction:
         total_steps: 300           # Total training steps (for curriculum)
         curriculum_beta: 0.7       # Curriculum decay exponent
         alpha_0: 0.8               # Initial JIG weight
+
+        # G-Normalization (L^0.5)
+        g_normalization:
+          enabled: true            # Enable G-Normalization
+          gamma: 0.5               # Normalization exponent (0.5 = sqrt)
+          adaptive: false          # Use adaptive gamma scheduling
+          gamma_min: 0.3           # Minimum gamma (adaptive mode)
+          gamma_max: 0.7           # Maximum gamma (adaptive mode)

@@ -1,10 +1,10 @@
-# IG-GRPO: JIG reward mode
-# Uses Joint Information Gain for exploration guidance
+# IG-Fixed: 固定 IG 权重
+# 使用固定的 curriculum_alpha = 0.5，无课程学习衰减
 interaction:
-  - name: "tau_bench_airline_jig"
+  - name: "tau_bench_retail_ig_fixed"
     class_name: "src.envs.tau_bench_interaction_ig.TauBenchInteractionIG"
     config:
-      env_name: "airline"
+      env_name: "retail"
       user_strategy: "llm"
       user_model: "Qwen/Qwen2.5-72B-Instruct-AWQ"
       user_provider: "openai"
@@ -13,6 +13,8 @@ interaction:
       max_turns: 30
       reward_mode: "jig"
       jig_config:
+        enabled: true
+
         # JIG component weights
         alpha_state: 0.3      # State novelty weight
         alpha_tool: 0.4       # Tool novelty weight
@@ -22,14 +24,11 @@ interaction:
         exploration_window: 50    # Window for trend detection
         trend_threshold: -0.01    # Threshold for IG decline
 
-        # Curriculum learning
-        total_steps: 300          # Total training steps (for curriculum)
-        curriculum_beta: 0.7      # Curriculum decay exponent
+        # Curriculum learning: DISABLED for IG-Fixed
+        total_steps: 1            # Set to 1 to disable curriculum decay
+        curriculum_beta: 0.0      # No decay
+        alpha_0: 0.5              # Fixed IG weight
 
-        # G-Normalization (L^0.5)
+        # G-Normalization: DISABLED for IG-Fixed
         g_normalization:
-          enabled: true            # Enable G-Normalization
-          gamma: 0.5               # Normalization exponent (0.5 = sqrt)
-          adaptive: false          # Use adaptive gamma scheduling
-          gamma_min: 0.3           # Minimum gamma (adaptive mode)
-          gamma_max: 0.7           # Maximum gamma (adaptive mode)
+          enabled: false

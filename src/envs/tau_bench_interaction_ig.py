@@ -23,6 +23,11 @@ from .jig_components import (
     SustainedExplorationBonus,
     CurriculumScheduler,
 )
+from .g_normalization import (
+    GNormalizer,
+    AdaptiveGNormalizer,
+    get_global_normalizer,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -79,11 +84,24 @@ def _compute_prm_lite_reward(state: dict) -> float:
     return outcome + 0.3 * process_score
 
 
-def _compute_jig_reward(state: dict, jig_computer: JointInformationGain, sustained_bonus: SustainedExplorationBonus) -> float:
-    """IG-GRPO: outcome + curriculum_alpha * (JIG + sustained_bonus)"""
+def _compute_jig_reward(
+    state: dict,
+    jig_computer: JointInformationGain,
+    sustained_bonus: SustainedExplorationBonus,
+    g_normalizer: Optional[GNormalizer] = None,
+) -> float:
+    """
+    IG-GRPO: outcome + curriculum_alpha * (JIG + sustained_bonus) with G-Normalization
+
+    G-Normalization applies L^0.5 normalization to control gradient variance:
+    - Without G-Norm: Long trajectories have diluted per-token gradients
+    - With G-Norm: Gradient variance bounded by Lemma 2 (γ ≤ 0.5)
+    """
     outcome = 1.0 if state["total_reward"] >= 1.0 else 0.0
 
     history = state.get("action_history", [])
+    trajectory_length = len(history)
+
     if not history:
         return outcome
 
@@ -116,9 +134,17 @@ def _compute_jig_reward(state: dict, jig_computer: JointInformationGain, sustain
     # 课程学习权重
     curriculum_alpha = state.get("curriculum_alpha", 0.3)
 
-    total_reward = outcome + curriculum_alpha * (avg_jig + sustained_value)
+    # 计算原始奖励
+    raw_reward = outcome + curriculum_alpha * (avg_jig + sustained_value)
 
-    return max(0.0, min(2.0, total_reward))
+    # 应用 G-Normalization (L^0.5)
+    if g_normalizer is not None:
+        result = g_normalizer.normalize(raw_reward, trajectory_length)
+        normalized_reward = result.normalized_advantage
+    else:
+        normalized_reward = raw_reward
+
+    return max(0.0, min(2.0, normalized_reward))
 
 
 _REWARD_FUNCTIONS = {
@@ -183,6 +209,29 @@ class TauBenchInteractionIG(BaseInteraction):
                 beta=beta,
             )
 
+            # G-Normalization (L^0.5)
+            g_norm_config = jig_config.get("g_normalization", {})
+            g_norm_enabled = g_norm_config.get("enabled", True)
+            g_norm_gamma = g_norm_config.get("gamma", 0.5)
+            g_norm_adaptive = g_norm_config.get("adaptive", False)
+
+            if g_norm_enabled:
+                if g_norm_adaptive:
+                    self.g_normalizer = AdaptiveGNormalizer(
+                        gamma_min=g_norm_config.get("gamma_min", 0.3),
+                        gamma_max=g_norm_config.get("gamma_max", 0.7),
+                        total_steps=total_steps,
+                        curriculum_beta=beta,
+                    )
+                else:
+                    self.g_normalizer = GNormalizer(gamma=g_norm_gamma)
+                logger.info(
+                    f"[TauBenchInteractionIG] G-Normalization enabled: "
+                    f"gamma={g_norm_gamma}, adaptive={g_norm_adaptive}"
+                )
+            else:
+                self.g_normalizer = None
+
             logger.info(
                 f"[TauBenchInteractionIG] JIG mode enabled: "
                 f"alpha_state={alpha_state}, alpha_tool={alpha_tool}, "
@@ -197,6 +246,7 @@ class TauBenchInteractionIG(BaseInteraction):
             self.jig_computer = None
             self.sustained_bonus = None
             self.curriculum_scheduler = None
+            self.g_normalizer = None
 
         logger.info(f"[TauBenchInteractionIG] env_name={self.env_name}, reward_mode={self.reward_mode}, use_jig={self.use_jig}")
 
@@ -378,7 +428,7 @@ class TauBenchInteractionIG(BaseInteraction):
         )
 
     def _compute_final_reward(self, state: dict) -> float:
-        """计算最终奖励（含 JIG）"""
+        """计算最终奖励（含 JIG + G-Normalization）"""
         # 基础奖励
         base_reward = 1.0 if state["total_reward"] >= 1.0 else 0.0
 
@@ -387,21 +437,28 @@ class TauBenchInteractionIG(BaseInteraction):
                 return self._compute_reward(state)
             return base_reward
 
-        # 计算 JIG 奖励
-        return _compute_jig_reward(state, self.jig_computer, self.sustained_bonus)
+        # 计算 JIG 奖励（含 G-Normalization）
+        return _compute_jig_reward(
+            state,
+            self.jig_computer,
+            self.sustained_bonus,
+            self.g_normalizer,
+        )
 
     def _get_jig_stats(self) -> dict:
-        """获取 JIG 统计"""
+        """获取 JIG 统计（含 G-Normalization）"""
         if not self.use_jig or self.jig_computer is None:
             return {}
 
         coverage_stats = self.jig_computer.coverage_tracker.get_coverage_stats()
         sustained_stats = self.sustained_bonus.get_stats() if self.sustained_bonus else {}
+        g_norm_stats = self.g_normalizer.get_stats() if self.g_normalizer else {}
 
         return {
             "coverage": coverage_stats,
             "sustained": sustained_stats,
             "curriculum_alpha": self.curriculum_scheduler.get_alpha() if self.curriculum_scheduler else 0.0,
+            "g_normalization": g_norm_stats,
         }
 
     async def calculate_score(self, instance_id: str, **kwargs) -> float | dict:
@@ -431,9 +488,12 @@ class TauBenchInteractionIG(BaseInteraction):
             self.jig_computer.coverage_tracker.reset_episode()
 
     def step_curriculum(self) -> None:
-        """步进课程学习调度器"""
-        if self.use_jig and self.curriculum_scheduler:
-            self.curriculum_scheduler.step()
+        """步进课程学习调度器和自适应 G-Normalizer"""
+        if self.use_jig:
+            if self.curriculum_scheduler:
+                self.curriculum_scheduler.step()
+            if self.g_normalizer and isinstance(self.g_normalizer, AdaptiveGNormalizer):
+                self.g_normalizer.step()
 
     def get_jig_stats(self) -> dict:
         """获取 JIG 统计"""

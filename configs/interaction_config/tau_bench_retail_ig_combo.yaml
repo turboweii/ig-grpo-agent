@@ -1,0 +1,35 @@
+# IG-Combo: 工具组合奖励
+# IG-Fixed + 更高的工具组合权重 (alpha_tool = 0.5)
+# 增强工具多样性奖励
+interaction:
+  - name: "tau_bench_retail_ig_combo"
+    class_name: "src.envs.tau_bench_interaction_ig.TauBenchInteractionIG"
+    config:
+      env_name: "retail"
+      user_strategy: "llm"
+      user_model: "Qwen/Qwen2.5-72B-Instruct-AWQ"
+      user_provider: "openai"
+      user_base_url: "http://localhost:8001/v1"
+      task_split: "train"
+      max_turns: 30
+      reward_mode: "jig"
+      jig_config:
+        enabled: true
+
+        # JIG component weights: 提高工具组合权重
+        alpha_state: 0.2      # State novelty weight (reduced)
+        alpha_tool: 0.5       # Tool novelty weight (INCREASED for combo reward)
+        alpha_transfer: 0.2   # Transition novelty weight
+
+        # Sustained exploration
+        exploration_window: 50    # Window for trend detection
+        trend_threshold: -0.01    # Threshold for IG decline
+
+        # Curriculum learning: DISABLED for IG-Combo
+        total_steps: 1            # Set to 1 to disable curriculum decay
+        curriculum_beta: 0.0      # No decay
+        alpha_0: 0.5              # Fixed IG weight
+
+        # G-Normalization: DISABLED for IG-Combo
+        g_normalization:
+          enabled: false
