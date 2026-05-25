@@ -1,0 +1,44 @@
+# IG-GRPO: SFT 数据采集配置 (Retail 域)
+# 使用 Best-of-N 策略采集高质量工具调用轨迹
+# 适配 4×4090 硬件配置
+
+env:
+  name: retail                  # τ-bench 域 (retail = 40 工具)
+  user_strategy: llm           # LLM 用户模拟器
+  user_model: qwen2.5-72b-awq  # 用户模拟器模型
+  user_provider: local
+  user_base_url: http://localhost:8001/v1  # 72B-AWQ 服务端口
+  task_split: train            # 使用训练集任务
+
+policy:
+  model_name: Qwen/Qwen2.5-7B-Instruct
+  base_url: http://localhost:8000/v1  # 7B 教师策略服务端口
+  top_p: 0.9
+  max_tokens: 4096
+
+collect:
+  best_of_n: 16                # 8×4090 可以采样更多次
+  max_turns: 30                # 最大交互轮次
+  num_workers: 8               # 并发 worker 数 (匹配 8×4090)
+  holdout_size: 10             # 预留 10 个任务作为 unseen 测试
+  temperatures:                # 采样温度分布 (16次)
+    - 0.0                      # 第 1 次 greedy
+    - 0.5
+    - 0.6
+    - 0.65
+    - 0.7
+    - 0.7
+    - 0.75
+    - 0.8
+    - 0.8
+    - 0.85
+    - 0.85
+    - 0.9
+    - 0.9
+    - 0.95
+    - 0.95
+    - 1.0                      # 最后一次最高温度
+
+output:
+  dir: experiments/sft_retail/raw  # 原始采集数据目录
+  # 最终合并后的 train.jsonl 会生成在这里

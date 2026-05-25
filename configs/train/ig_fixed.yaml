@@ -1,0 +1,46 @@
+# IG-Fixed 实验配置
+# 固定 IG 权重，验证 IG 信号有效性
+
+defaults:
+  - base: base
+
+trainer:
+  project: IG-GRPO
+  experiment_name: ig_fixed_retail
+
+  # IG-GRPO 基础配置
+  use_jig_reward: true
+  jig_weight: 0.5
+  jig_use_curriculum: false  # 固定权重，不衰减
+
+  # 组件
+  use_coverage_tracker: true
+  use_sustained_exploration: false  # 不使用持续性奖励
+  use_dependency_graph: false
+
+  # 权重
+  alpha_state: 0.5
+  alpha_tool: 0.3
+  alpha_transfer: 0.2
+  alpha_sustained: 0.0
+
+ig_grpo:
+  use_jig_reward: true
+  jig_weight: 0.5
+  jig_use_curriculum: false
+
+  alpha_state: 0.5
+  alpha_tool: 0.3
+  alpha_transfer: 0.2
+
+  use_coverage_tracker: true
+  use_sustained_exploration: false
+  use_dependency_graph: false
+
+logging:
+  log_interval: 10
+  save_interval: 50
+  eval_interval: 50
+
+output:
+  output_dir: outputs/ig_fixed/

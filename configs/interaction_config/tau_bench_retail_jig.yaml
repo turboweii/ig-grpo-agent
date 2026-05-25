@@ -1,0 +1,30 @@
+# IG-GRPO: JIG reward mode for Retail domain
+# Retail 域有 16 个工具，测试 JIG 的探索能力
+interaction:
+  - name: "tau_bench_retail_jig"
+    class_name: "src.envs.tau_bench_interaction_ig.TauBenchInteractionIG"
+    config:
+      env_name: "retail"           # 使用 retail 域 (16工具)
+      user_strategy: "llm"
+      user_model: "Qwen/Qwen2.5-72B-Instruct-AWQ"
+      user_provider: "openai"
+      user_base_url: "http://localhost:8001/v1"
+      task_split: "train"
+      max_turns: 30
+      reward_mode: "jig"
+      jig_config:
+        # JIG component weights
+        alpha_state: 0.3           # State novelty weight
+        alpha_tool: 0.4            # Tool novelty weight
+        alpha_transfer: 0.2        # Transition novelty weight
+        alpha_sustained: 0.1       # Sustained exploration bonus weight
+
+        # Sustained exploration
+        exploration_window: 50     # Window for trend detection
+        trend_threshold: -0.01     # Threshold for IG decline
+        force_diverse_prob: 0.1    # Probability to force diverse action
+
+        # Curriculum learning
+        total_steps: 300           # Total training steps (for curriculum)
+        curriculum_beta: 0.7       # Curriculum decay exponent
+        alpha_0: 0.8               # Initial JIG weight

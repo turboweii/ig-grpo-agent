@@ -1,0 +1,130 @@
+# IG-GRPO 基础配置
+
+# 硬件配置
+hardware:
+  n_gpus: 2
+  gpu_ids: [0, 1]
+
+# 训练器基础配置
+trainer:
+  # 随机种子
+  seed: 42
+
+  # Rollout 配置
+  max_turns: 30
+  max_tokens: 4096
+
+  # GRPO 参数
+  clip_eps: 0.2
+  kl_coef: 0.1
+
+  # 优化器
+  optimizer: adamw
+  weight_decay: 0.01
+  grad_clip: 1.0
+
+# 模型配置
+model:
+  # 策略模型
+  policy_name_or_path: Qwen/Qwen2.5-7B-Instruct
+
+  # 奖励模型（IG-GRPO 不需要）
+  reward_model: null
+
+  # vLLM 配置
+  vllm_port: 8000
+  vllm_tensor_parallel_size: 2
+  vllm_gpu_memory_utilization: 0.9
+  vllm_dtype: bfloat16
+
+  # 工具调用
+  tool_calling_parser: hermes
+
+# 环境配置
+env:
+  name: tau_bench
+  domain: retail
+  task_split: train
+
+  # 用户模拟器
+  user_strategy: llm
+  user_model: qwen2.5-72b-awq
+  user_provider: local
+  user_base_url: http://localhost:8001/v1
+
+# IG-GRPO 参数（默认值，可被覆盖）
+ig_grpo:
+  # JIG 奖励
+  use_jig_reward: true
+  jig_weight: 0.5
+  jig_use_curriculum: true
+  jig_alpha_0: 0.8
+  jig_beta: 0.7
+
+  # 权重分解
+  alpha_state: 0.3
+  alpha_tool: 0.4
+  alpha_transfer: 0.2
+  alpha_sustained: 0.1
+
+  # G-Normalization
+  g_norm_gamma: 0.5
+
+  # 覆盖追踪
+  use_coverage_tracker: true
+
+  # Bloom Filter 参数
+  bloom_short_capacity: 100000
+  bloom_mid_capacity: 1000000
+  bloom_long_capacity: 10000000
+  bloom_short_error: 0.001
+  bloom_mid_error: 0.01
+  bloom_long_error: 0.05
+
+  # 探索持续性
+  use_sustained_exploration: true
+  sustained_window: 50
+  sustained_trend_threshold: -0.01
+
+  # 重复惩罚
+  repeat_penalty: 0.3
+  repeat_window: 3
+
+  # 工具依赖
+  use_dependency_graph: true
+
+  # Bypass 模式
+  bypass_mode: true
+  fused_cross_entropy: true
+
+# 内存优化
+memory:
+  fsdp_memory_limit: 70_000_000_000
+  use_checkpointing: true
+  use_bfloat16: true
+
+# 评测配置
+evaluation:
+  eval_tasks: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]  # 测试任务 ID
+
+  # Pass@K
+  pass_k_samples: 4
+  pass_k_n: 1
+
+  # Entropy@K
+  entropy_k_samples: 4
+  state_space_size: 1_000_000
+
+# 日志配置
+logging:
+  log_interval: 10
+  save_interval: 50
+  eval_interval: 50
+  use_wandb: false
+  use_swanlab: true
+
+# 输出配置
+output:
+  output_dir: outputs/
+  checkpoint_dir: checkpoints/
+  log_dir: logs/

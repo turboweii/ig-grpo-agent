@@ -1,0 +1,64 @@
+# Vanilla GRPO 基线配置
+# 不使用 IG 奖励，仅用最终任务奖励
+
+defaults:
+  - base: base
+
+trainer:
+  project: IG-GRPO
+  experiment_name: vanilla_retail
+
+  # 训练参数
+  total_steps: 300
+  rollout_batch_size: 64
+  group_size: 8
+  learning_rate: 1e-5
+  max_epochs: 1
+
+  # IG-GRPO 关闭
+  use_jig_reward: false
+  use_coverage_tracker: false
+  use_sustained_exploration: false
+  use_dependency_graph: false
+
+  # Bypass 模式（保持开启以对比显存）
+  bypass_mode: false
+  fused_cross_entropy: false
+
+model:
+  policy_name_or_path: Qwen/Qwen2.5-7B-Instruct
+  reward_model: null
+
+  # vLLM 配置
+  vllm_tensor_parallel_size: 2
+  vllm_gpu_memory_utilization: 0.9
+
+env:
+  name: tau_bench
+  domain: retail
+  task_split: train
+
+  # 用户模拟器
+  user_model: qwen2.5-72b-awq
+  user_base_url: http://localhost:8001/v1
+
+evaluation:
+  # Pass@K 评测
+  run_pass_k: true
+  pass_k_samples: 4
+
+  # Entropy@K 评测
+  run_entropy_k: true
+  entropy_k_samples: 4
+
+  # 任务分割
+  use_anti_leakage: true
+  n_clusters: 5
+
+logging:
+  log_interval: 10
+  save_interval: 50
+  eval_interval: 50
+
+output:
+  output_dir: outputs/vanilla/

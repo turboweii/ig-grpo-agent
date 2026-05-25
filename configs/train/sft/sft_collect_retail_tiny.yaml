@@ -1,0 +1,28 @@
+# IG-GRPO: SFT 数据采集配置 (Retail 域 - Tiny 测试版)
+# 快速验证流程：只采集 2 个任务，每个采样 2 次
+
+env:
+  name: retail
+  user_strategy: llm
+  user_model: qwen2.5-72b-awq
+  user_provider: local
+  user_base_url: http://localhost:8001/v1
+  task_split: train
+
+policy:
+  model_name: Qwen/Qwen2.5-7B-Instruct
+  base_url: http://localhost:8000/v1
+  top_p: 0.9
+  max_tokens: 4096
+
+collect:
+  best_of_n: 2                 # 只采样 2 次
+  max_turns: 30
+  num_workers: 2               # 2 个 worker
+  holdout_size: 0              # tiny 模式不预留
+  temperatures:
+    - 0.0
+    - 0.8
+
+output:
+  dir: experiments/sft_retail/raw_tiny  # tiny 测试目录

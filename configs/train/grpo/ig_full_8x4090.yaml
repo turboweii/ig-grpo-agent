@@ -1,0 +1,105 @@
+# IG-GRPO 配置 - 适配 8×4090 (24GB)
+# 优化策略：分离 rollout 和训练，实现并行加速
+hydra:
+  searchpath:
+    - pkg://verl/trainer/config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+data:
+  train_files: experiments/vanilla/train.parquet
+  val_files: experiments/vanilla/val.parquet
+  train_batch_size: 4           # 8卡可以用更大batch
+  max_prompt_length: 6144       # 比单卡版本更大
+  max_response_length: 8192
+  return_raw_chat: True
+  tool_config_path: configs/tool_config/tau_bench_retail_tools.yaml
+
+actor_rollout_ref:
+  model:
+    path: experiments/sft_lora_merged
+    enable_gradient_checkpointing: true
+    lora_rank: 16
+    lora_alpha: 32
+    lora_dropout: 0.05
+    target_modules: ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj"]
+    use_fused_kernels: true
+    override_config:
+      attn_implementation: flash_attention_2
+  actor:
+    fsdp_config:
+      optimizer_offload: false
+      param_offload: false
+      model_dtype: bf16
+    optim:
+      lr: 1e-5
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+    use_kl_loss: True
+    kl_loss_coef: 0.01
+    kl_loss_type: low_var_kl
+    use_fused_kernels: true
+    ppo_mini_batch_size: 4       # 8卡可以增大
+    ppo_micro_batch_size_per_gpu: 2  # 每GPU 2个样本
+    gradient_accumulation_steps: 2   # 减少累积步数
+  rollout:
+    name: "vllm"
+    mode: async
+    agent:
+      default_agent_loop: tool_agent
+    multi_turn:
+      enable: True
+      format: "hermes"
+      max_user_turns: 12          # 更大的上下文容量
+      max_assistant_turns: 12
+      tool_config_path: configs/tool_config/tau_bench_retail_tools.yaml
+      interaction_config_path: configs/interaction_config/tau_bench_retail_jig.yaml
+    n: 8                         # 8卡可以用更大group size
+    temperature: 0.7
+    top_p: 0.9
+    tensor_model_parallel_size: 4 # 保持4卡TP，另外4卡用于训练
+    calculate_log_probs: true
+    gpu_memory_utilization: 0.85
+    free_cache_engine: true
+    max_num_seqs: 32              # 8卡可以翻倍
+    max_model_len: 20480          # 更大的上下文
+    max_num_batched_tokens: 20480
+    log_prob_micro_batch_size_per_gpu: 2
+    # vLLM 优化参数
+    enforce_eager: false
+    disable_log_stats: true
+    val_kwargs:
+      n: 1
+      temperature: 0.7
+      top_p: 0.9
+  ref:
+    fsdp_config:
+      optimizer_offload: false
+      param_offload: false
+      model_dtype: bf16
+    model:
+      path: Qwen/Qwen2.5-7B-Instruct
+      override_config:
+        attn_implementation: flash_attention_2
+    log_prob_micro_batch_size_per_gpu: 2
+
+algorithm:
+  adv_estimator: grpo
+  kl_ctrl:
+    kl_coef: 0.01
+  rollout_correction:
+    bypass_mode: true
+
+trainer:
+  total_epochs: 50               # 8卡效率更高，可以减少epochs
+  total_training_steps: 300
+  save_freq: 50
+  test_freq: 50
+  default_local_dir: experiments/ig_full_8x4090/checkpoints
+  logger: ['console']
+  project_name: ig-grpo
+  experiment_name: ig_full_8x4090
+  n_gpus_per_node: 8             # 8张4090
+  nnodes: 1

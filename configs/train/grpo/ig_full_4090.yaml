@@ -1,0 +1,105 @@
+# IG-GRPO 配置 - 适配 4×4090 (24GB)
+# 关键调整：减小batch、梯度累积、优化显存使用
+hydra:
+  searchpath:
+    - pkg://verl/trainer/config
+
+defaults:
+  - ppo_trainer
+  - _self_
+
+data:
+  train_files: experiments/vanilla/train.parquet
+  val_files: experiments/vanilla/val.parquet
+  train_batch_size: 2          # 降低batch size
+  max_prompt_length: 4096       # 减半 (原8192)
+  max_response_length: 6144     # 减半 (原12288)
+  return_raw_chat: True
+  tool_config_path: configs/tool_config/tau_bench_retail_tools.yaml
+
+actor_rollout_ref:
+  model:
+    path: experiments/sft_lora_merged  # SFT 微调后的模型
+    enable_gradient_checkpointing: true
+    lora_rank: 16                 # LoRA rank
+    lora_alpha: 32
+    lora_dropout: 0.05
+    target_modules: ["q_proj", "v_proj", "k_proj", "o_proj", "gate_proj", "up_proj"]
+    use_fused_kernels: true
+    override_config:
+      attn_implementation: flash_attention_2
+  actor:
+    fsdp_config:
+      optimizer_offload: false   # 4×24GB 不需要 CPU offload
+      param_offload: false       # 保持在 GPU 上加速训练
+      model_dtype: bf16
+    optim:
+      lr: 1e-5                    # 稍低的学习率
+      weight_decay: 0.01
+      betas: [0.9, 0.999]
+    use_kl_loss: True
+    kl_loss_coef: 0.01
+    kl_loss_type: low_var_kl
+    use_fused_kernels: true
+    ppo_mini_batch_size: 2        # 减小mini-batch
+    ppo_micro_batch_size_per_gpu: 1  # 每GPU 1个样本
+    gradient_accumulation_steps: 4   # 梯度累积4步
+  rollout:
+    name: "vllm"
+    mode: async
+    agent:
+      default_agent_loop: tool_agent
+    multi_turn:
+      enable: True
+      format: "hermes"
+      max_user_turns: 10          # 减少轮次
+      max_assistant_turns: 10
+      tool_config_path: configs/tool_config/tau_bench_retail_tools.yaml
+      interaction_config_path: configs/interaction_config/tau_bench_retail_jig.yaml
+    n: 4                         # group size降低到4
+    temperature: 0.7
+    top_p: 0.9
+    tensor_model_parallel_size: 4 # 4卡TP并行，充分利用4090
+    calculate_log_probs: true
+    gpu_memory_utilization: 0.85  # 4卡TP时预留更多空间
+    free_cache_engine: true
+    max_num_seqs: 16              # 提高吞吐
+    max_model_len: 16384          # 减小上下文长度
+    max_num_batched_tokens: 16384
+    log_prob_micro_batch_size_per_gpu: 1
+    # vLLM 优化参数
+    enforce_eager: false
+    disable_log_stats: true
+    val_kwargs:
+      n: 1
+      temperature: 0.7
+      top_p: 0.9
+  ref:
+    fsdp_config:
+      optimizer_offload: false   # 4×24GB 不需要 CPU offload
+      param_offload: false
+      model_dtype: bf16
+    model:
+      path: Qwen/Qwen2.5-7B-Instruct
+      override_config:
+        attn_implementation: flash_attention_2
+    log_prob_micro_batch_size_per_gpu: 1
+
+algorithm:
+  adv_estimator: grpo
+  kl_ctrl:
+    kl_coef: 0.01
+  rollout_correction:
+    bypass_mode: true
+
+trainer:
+  total_epochs: 100              # 增加epochs补偿小batch
+  total_training_steps: 300
+  save_freq: 50
+  test_freq: 50
+  default_local_dir: experiments/ig_full_4090/checkpoints
+  logger: ['console']
+  project_name: ig-grpo
+  experiment_name: ig_full_4090
+  n_gpus_per_node: 4             # 4张4090
+  nnodes: 1

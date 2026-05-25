@@ -1,0 +1,57 @@
+# IG-GRPO: LoRA SFT 训练配置 (Retail 域)
+# 适配 8×4090 (24GB) 多卡训练
+# SFT 作为 GRPO 训练前的预热步骤
+
+model:
+  name_or_path: "Qwen/Qwen2.5-7B-Instruct"
+  attn_impl: "flash_attention_2"
+
+data:
+  train_jsonl: "experiments/sft_retail/train.jsonl"
+  eval_jsonl: null
+  max_length: 8192
+
+lora:
+  r: 16
+  alpha: 32
+  dropout: 0.05
+  target_modules:
+    - q_proj
+    - k_proj
+    - v_proj
+    - o_proj
+    - gate_proj
+    - up_proj
+    - down_proj
+
+train:
+  num_epochs: 3
+  per_device_batch_size: 8   # 8×4090 可以用 8
+  gradient_accumulation_steps: 2  # 等效 batch=128 (8卡×8×2)
+  lr: 1.0e-4
+  lr_scheduler: cosine
+  warmup_ratio: 0.05
+  weight_decay: 0.0
+  max_grad_norm: 1.0
+  logging_steps: 5
+  save_strategy: epoch
+  save_total_limit: 3
+  run_name: "sft_retail_lora_8gpu"
+  seed: 42
+
+  # 多卡配置
+  num_gpus: 8
+  gradient_checkpointing: true
+  bf16: true
+  optim: adamw_torch_fused
+  ddp_find_unused_parameters: false
+  attn_implementation: flash_attention_2
+
+logger:
+  backend: swanlab
+  project: "ig-grpo"
+  description: "SFT warmup on retail domain (8×4090)"
+
+output:
+  dir: "experiments/sft_retail"
+  merge_dir: "experiments/sft_lora_merged"

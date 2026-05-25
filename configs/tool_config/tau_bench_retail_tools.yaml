@@ -1,0 +1,296 @@
+tools:
+- class_name: src.envs.tau_bench_tools.TauBench_Calculate_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: Calculate
+      description: Calculate the result of a math operation.
+      parameters:
+        type: object
+        properties:
+          expression:
+            type: string
+            description: The math expression to calculate, e.g., '5 + 3', '10 * 2'
+        required: ['expression']
+- class_name: src.envs.tau_bench_tools.TauBench_CancelPendingOrder_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: CancelPendingOrder
+      description: Cancel a pending order.
+      parameters:
+        type: object
+        properties:
+          order_id:
+            type: string
+            description: The ID of the order to cancel
+        required: ['order_id']
+- class_name: src.envs.tau_bench_tools.TauBench_ExchangeDeliveredOrderItems_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: ExchangeDeliveredOrderItems
+      description: Exchange items from a delivered order.
+      parameters:
+        type: object
+        properties:
+          order_id:
+            type: string
+            description: The ID of the delivered order
+          item_ids:
+            type: array
+            description: List of item IDs to exchange
+            items:
+              type: string
+          replacement_item_ids:
+            type: array
+            description: List of replacement item IDs
+            items:
+              type: string
+        required: ['order_id', 'item_ids', 'replacement_item_ids']
+- class_name: src.envs.tau_bench_tools.TauBench_FindUserIdByEmail_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: FindUserIdByEmail
+      description: Find user ID by email address.
+      parameters:
+        type: object
+        properties:
+          email:
+            type: string
+            description: The email address to search for
+        required: ['email']
+- class_name: src.envs.tau_bench_tools.TauBench_FindUserIdByNameZip_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: FindUserIdByNameZip
+      description: Find user ID by name and zip code.
+      parameters:
+        type: object
+        properties:
+          name:
+            type: string
+            description: The user's full name
+          zip_code:
+            type: string
+            description: The user's zip code
+        required: ['name', 'zip_code']
+- class_name: src.envs.tau_bench_tools.TauBench_GetOrderDetails_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: GetOrderDetails
+      description: Get details of a specific order.
+      parameters:
+        type: object
+        properties:
+          order_id:
+            type: string
+            description: The ID of the order
+        required: ['order_id']
+- class_name: src.envs.tau_bench_tools.TauBench_GetProductDetails_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: GetProductDetails
+      description: Get details of a specific product.
+      parameters:
+        type: object
+        properties:
+          product_id:
+            type: string
+            description: The ID of the product
+        required: ['product_id']
+- class_name: src.envs.tau_bench_tools.TauBench_GetUserDetails_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: GetUserDetails
+      description: Get details of a specific user.
+      parameters:
+        type: object
+        properties:
+          user_id:
+            type: string
+            description: The ID of the user
+        required: ['user_id']
+- class_name: src.envs.tau_bench_tools.TauBench_ListAllProductTypes_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: ListAllProductTypes
+      description: List all available product types.
+      parameters:
+        type: object
+        properties:
+        required: []
+- class_name: src.envs.tau_bench_tools.TauBench_ModifyPendingOrderAddress_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: ModifyPendingOrderAddress
+      description: Modify the shipping address of a pending order.
+      parameters:
+        type: object
+        properties:
+          order_id:
+            type: string
+            description: The ID of the pending order
+          new_address:
+            type: string
+            description: The new shipping address
+          new_city:
+            type: string
+            description: The new city
+          new_state:
+            type: string
+            description: The new state
+          new_zip_code:
+            type: string
+            description: The new zip code
+        required: ['order_id', 'new_address', 'new_city', 'new_state', 'new_zip_code']
+- class_name: src.envs.tau_bench_tools.TauBench_ModifyPendingOrderItems_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: ModifyPendingOrderItems
+      description: Modify items in a pending order.
+      parameters:
+        type: object
+        properties:
+          order_id:
+            type: string
+            description: The ID of the pending order
+          item_ids:
+            type: array
+            description: List of item IDs to modify
+            items:
+              type: string
+          quantities:
+            type: array
+            description: New quantities for the items
+            items:
+              type: integer
+        required: ['order_id', 'item_ids', 'quantities']
+- class_name: src.envs.tau_bench_tools.TauBench_ModifyPendingOrderPayment_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: ModifyPendingOrderPayment
+      description: Modify the payment method of a pending order.
+      parameters:
+        type: object
+        properties:
+          order_id:
+            type: string
+            description: The ID of the pending order
+          payment_method:
+            type: string
+            description: The new payment method (e.g., 'credit_card', 'paypal')
+        required: ['order_id', 'payment_method']
+- class_name: src.envs.tau_bench_tools.TauBench_ModifyUserAddress_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: ModifyUserAddress
+      description: Modify a user's address.
+      parameters:
+        type: object
+        properties:
+          user_id:
+            type: string
+            description: The ID of the user
+          new_address:
+            type: string
+            description: The new address
+          new_city:
+            type: string
+            description: The new city
+          new_state:
+            type: string
+            description: The new state
+          new_zip_code:
+            type: string
+            description: The new zip code
+        required: ['user_id', 'new_address', 'new_city', 'new_state', 'new_zip_code']
+- class_name: src.envs.tau_bench_tools.TauBench_ReturnDeliveredOrderItems_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: ReturnDeliveredOrderItems
+      description: Return items from a delivered order.
+      parameters:
+        type: object
+        properties:
+          order_id:
+            type: string
+            description: The ID of the delivered order
+          item_ids:
+            type: array
+            description: List of item IDs to return
+            items:
+              type: string
+          reason:
+            type: string
+            description: Reason for return
+        required: ['order_id', 'item_ids']
+- class_name: src.envs.tau_bench_tools.TauBench_Think_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: Think
+      description: Think about the next action. This tool allows you to reason before taking action.
+      parameters:
+        type: object
+        properties:
+          thought:
+            type: string
+            description: Your thought process
+        required: ['thought']
+- class_name: src.envs.tau_bench_tools.TauBench_TransferToHumanAgents_Tool
+  config:
+    type: native
+  tool_schema:
+    type: function
+    function:
+      name: TransferToHumanAgents
+      description: Transfer the conversation to a human agent.
+      parameters:
+        type: object
+        properties:
+          reason:
+            type: string
+            description: Reason for transfer
+        required: ['reason']
